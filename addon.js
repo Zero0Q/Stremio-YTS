@@ -1,6 +1,5 @@
 const { addonBuilder } = require('stremio-addon-sdk');
 
-const builder = new addonBuilder(manifest);
 const request = require('request')
 const myCache = require('./cache')
 const utils = require('./utils')
@@ -26,7 +25,7 @@ const manifest = {
             extra: [
                 {
                     name: 'genre',
-                    options: ['Action','Adventure','Animation','Biography','Comedy','Crime','Documentary','Drama','Family','Fantasy','Film Noir','History','Horror','Music','Musical','Mystery','Romance','Sci-Fi','Short Film','Sport','Superhero','Thriller','War','Western'],
+                    options: ['Action','Adventure','Animation','Biography','Comedy','Crime','Documentary','Drama','Family','Fantasy','Film Noir','History','Horror','Music','Musical','Mystery','Romance[...]
                     isRequired: false
                 }
             ]
