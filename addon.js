@@ -59,7 +59,6 @@ function cachedRequest(url,callback, reject){
 
 function getMovies(page, cat = false) {
     return new Promise((resolve, reject) => {
-
         const query = {
             genre: cat,
             limit: 50,
@@ -67,9 +66,11 @@ function getMovies(page, cat = false) {
             page
         };
 
+        console.log(`Fetching movies with query: ${JSON.stringify(query)}`);
         cachedRequest(endpoint + '/api/v2/list_movies.json?' + utils.serialize(query), (data) => {
             try {
                 const jsonObject = JSON.parse(data)['data']['movies'];
+                console.log(`Movies data received: ${JSON.stringify(jsonObject)}`);
 
                 if (!jsonObject || jsonObject.length === 0) {
                     console.log('No more movies to load.');
@@ -112,33 +113,33 @@ function getMovies(page, cat = false) {
 
 function getStreams(imdb) {
     return new Promise((resolve, reject) => {
-
         const query = { query_term: imdb }
 
-        cachedRequest(endpoint + '/api/v2/list_movies.json/?' + utils.serialize(query), (data) => {    
+        console.log(`Fetching streams with query: ${JSON.stringify(query)}`);
+        cachedRequest(endpoint + '/api/v2/list_movies.json/?' + utils.serialize(query), (data) => {
             try {
-                const jsonObject = JSON.parse(data)['data']['movies']
+                const jsonObject = JSON.parse(data)['data']['movies'];
+                console.log(`Streams data received: ${JSON.stringify(jsonObject)}`);
 
-                const item = (jsonObject || []).find(el => el.imdb_code === imdb)
+                const item = (jsonObject || []).find(el => el.imdb_code === imdb);
 
                 if (!item) {
-                    console.error(`No metadata found for IMDb ID: ${imdb}`)
-                    return reject('No metadata was found!')
+                    console.error(`No metadata found for IMDb ID: ${imdb}`);
+                    return reject('No metadata was found!');
                 }
 
-                let streams = []
+                let streams = [];
 
                 if (((item || {}).torrents || []).length) {
                     streams = item.torrents
                         .sort((a, b) => {
-                            // Sort by quality first with 2160p as highest priority
-                            const qualityOrder = ['2160p', '1080p', '720p']
-                            const qualityA = qualityOrder.indexOf(a.quality)
-                            const qualityB = qualityOrder.indexOf(b.quality)
-                            return qualityA - qualityB
+                            const qualityOrder = ['2160p', '1080p', '720p'];
+                            const qualityA = qualityOrder.indexOf(a.quality);
+                            const qualityB = qualityOrder.indexOf(b.quality);
+                            return qualityA - qualityB;
                         })
                         .map(el => {
-                            const hash = el.hash.toLowerCase()
+                            const hash = el.hash.toLowerCase();
                             return {
                                 title: utils.capitalize(el.type) + ' / ' + el.quality + ', S: ' + el.seeds + ' L: ' + el.peers + ', Size: ' + el.size,
                                 infoHash: hash,
@@ -154,24 +155,24 @@ function getStreams(imdb) {
                                     'tracker:udp://torrent.gresille.org:80/announce',
                                     'tracker:udp://tracker.leechers-paradise.org:6969'
                                 ]
-                            }
-                        })
+                            };
+                        });
                 }
 
                 resolve({
                     streams,
                     cacheMaxAge: cache.maxAge,
                     staleError: cache.staleError
-                })
+                });
             } catch (error) {
-                console.error(`Error parsing metadata for IMDb ID: ${imdb}`, error)
-                reject('Error parsing metadata response: ' + error.message)
+                console.error(`Error parsing metadata for IMDb ID: ${imdb}`, error);
+                reject('Error parsing metadata response: ' + error.message);
             }
         }, (error) => {
-            console.error(`Error fetching metadata for IMDb ID: ${imdb}`, error)
-            reject('Error fetching metadata: ' + error)
-        })
-    })
+            console.error(`Error fetching metadata for IMDb ID: ${imdb}`, error);
+            reject('Error fetching metadata: ' + error);
+        });
+    });
 }
 
 const builder = new addonBuilder(manifest)
