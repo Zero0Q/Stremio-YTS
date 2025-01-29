@@ -63,7 +63,7 @@ function getMovies(page, cat = false) {
 		const query = {
 			genre: cat,
 			limit: 50,
-			sort_by: 'date_added',
+			sort_by: 'seeds',
 			page
 		}
 
@@ -120,11 +120,15 @@ function getStreams(imdb) {
 						infoHash: hash,
 						sources: [
 							'dht:' + hash,
-							'tracker:udp://tracker.coppersurfer.tk:6969/announce',
-							'tracker:udp://9.rarbg.com:2710/announce',
+							'tracker:udp://tracker.coppersurfer.tk:6969',
+							'tracker:udp://tracker.openbittorrent.com:80',
 							'tracker:udp://p4p.arenabg.com:1337',
 							'tracker:udp://tracker.internetwarriors.net:1337',
-							'tracker:udp://tracker.opentrackr.org:1337/announce'
+							'tracker:udp://tracker.opentrackr.org:1337/announce',
+							'tracker:udp://open.demonii.com:1337/announce',
+                                                        'tracker:udp://glotorrents.pw:6969/announce',
+                                                        'tracker:udp://torrent.gresille.org:80/announce',
+                                                        'tracker:udp://tracker.leechers-paradise.org:6969'
 						]
 					}
 				})
