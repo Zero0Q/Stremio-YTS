@@ -1,17 +1,16 @@
 const { addonBuilder } = require('stremio-addon-sdk');
+const request = require('request');
+const myCache = require('./cache');
+const utils = require('./utils');
+const package = require('./package.json');
 
-const request = require('request')
-const myCache = require('./cache')
-const utils = require('./utils')
-const package = require('./package.json')
-
-const endpoint = 'https://yts.mx'
-const oneDay = 24 * 60 * 60 // in seconds
+const endpoint = 'https://yts.mx';
+const oneDay = 24 * 60 * 60; // in seconds
 
 const cache = {
     maxAge: 1.5 * oneDay, // 1.5 days
     staleError: 6 * 30 * oneDay // 6 months
-}
+};
 
 const manifest = {
     id: 'community.yts',
@@ -25,7 +24,7 @@ const manifest = {
             extra: [
                 {
                     name: 'genre',
-                    options: ['Action','Adventure','Animation','Biography','Comedy','Crime','Documentary','Drama','Family','Fantasy','Film Noir','History','Horror','Music','Musical','Mystery','Romance[...]
+                    options: ['Action','Adventure','Animation','Biography','Comedy','Crime','Documentary','Drama','Family','Fantasy','Film Noir','History','Horror','Music','Musical','Mystery','Romance', 'Sci-Fi', 'Short', 'Sport', 'Thriller', 'War', 'Western'],
                     isRequired: false
                 }
             ]
@@ -36,7 +35,7 @@ const manifest = {
     name: 'YTS',
     description: 'Movies and torrent results from YTS',
     idPrefixes: ['tt']
-}
+};
 
 function cachedRequest(url, callback, reject) {
     let data = myCache.get(url);
@@ -45,8 +44,8 @@ function cachedRequest(url, callback, reject) {
     } else {
         request(url, function(error, response, data) {
             if (error || !data || response.statusCode != 200) {
-                reject('Invalid response from API for category: ' + (cat || 'top') + ' / page: ' + page)
-                return
+                reject('Invalid response from API for category: ' + (cat || 'top') + ' / page: ' + page);
+                return;
             }
             myCache.set(url, data, 432000);
             callback(data);
@@ -61,10 +60,10 @@ function getMovies(page, cat = false) {
             limit: 50,
             sort_by: 'seeds',
             page
-        }
+        };
 
         cachedRequest(endpoint + '/api/v2/list_movies.json?' + utils.serialize(query), (data) => {
-            const jsonObject = JSON.parse(data)['data']['movies']
+            const jsonObject = JSON.parse(data)['data']['movies'];
 
             const metas = (jsonObject || []).map(item => ({
                 id: item.imdb_code,
@@ -78,20 +77,20 @@ function getMovies(page, cat = false) {
                 runtime: item.runtime + 'm',
                 genres: item.genres,
                 type: 'movie'
-            }))
+            }));
 
             resolve({
                 metas,
                 cacheMaxAge: cache.maxAge,
                 staleError: cache.staleError
-            })
-        })
-    })
+            });
+        });
+    });
 }
 
 function getStreams(imdb) {
     return new Promise((resolve, reject) => {
-        const query = { query_term: imdb }
+        const query = { query_term: imdb };
 
         console.log(`Fetching streams with query: ${JSON.stringify(query)}`);
         cachedRequest(endpoint + '/api/v2/list_movies.json/?' + utils.serialize(query), (data) => {
@@ -111,27 +110,10 @@ function getStreams(imdb) {
                     infoHash: el.hash.toLowerCase()
                 }));
 
-                // Fetch Real-Debrid links
-                const rdStreams = streams.map(stream => {
-                    const url = `https://api.real-debrid.com/rest/1.0/unrestrict/link?link=${encodeURIComponent(stream.infoHash)}`;
-
-                    return axios.post(url, {}, {
-                        headers: {
-                            'Authorization': `Bearer ${process.env.REAL_DEBRID_API_KEY}`
-                        }
-                    }).then(response => ({
-                        title: stream.title,
-                        url: response.data.download,
-                        infoHash: stream.infoHash
-                    })).catch(() => null);
-                });
-
-                Promise.all(rdStreams).then(rdResults => {
-                    resolve({
-                        streams: rdResults.filter(Boolean),
-                        cacheMaxAge: cache.maxAge,
-                        staleError: cache.staleError
-                    });
+                resolve({
+                    streams,
+                    cacheMaxAge: cache.maxAge,
+                    staleError: cache.staleError
                 });
             } catch (error) {
                 reject('Error parsing metadata response: ' + error.message);
@@ -142,16 +124,16 @@ function getStreams(imdb) {
     });
 }
 
-const builder = new addonBuilder(manifest)
+const builder = new addonBuilder(manifest);
 
 builder.defineCatalogHandler(args => {
-    const start = (args.extra || {}).skip ? Math.round(args.extra.skip / 50) + 1 : 1
-    const cat = (args.extra || {}).genre ? args.extra.genre : false
-    return getMovies(start, cat)
-})
+    const start = (args.extra || {}).skip ? Math.round(args.extra.skip / 50) + 1 : 1;
+    const cat = (args.extra || {}).genre ? args.extra.genre : false;
+    return getMovies(start, cat);
+});
 
 builder.defineStreamHandler(args => {
-    return getStreams(args.id)
-})
+    return getStreams(args.id);
+});
 
-module.exports = builder.getInterface()
+module.exports = builder.getInterface();
