@@ -118,10 +118,7 @@ function getStreams(imdb) {
                         const qualityOrder = ['2160p', '1080p', '720p']
                         const qualityA = qualityOrder.indexOf(a.quality)
                         const qualityB = qualityOrder.indexOf(b.quality)
-                        if (qualityA !== qualityB) return qualityA - qualityB
-                        
-                        // If quality is the same, sort by size
-                        return a.size_bytes - b.size_bytes
+                        return qualityA - qualityB
                     })
                     .map(el => {
                         const hash = el.hash.toLowerCase()
