@@ -58,57 +58,42 @@ function cachedRequest(url,callback, reject){
 }
 
 function getMovies(page, cat = false) {
-    return new Promise((resolve, reject) => {
-        const query = {
-            genre: cat,
-            limit: 50,
-            sort_by: 'seeds',
-            page
-        };
+	return new Promise((resolve, reject) => {
 
-        console.log(`Fetching movies with query: ${JSON.stringify(query)}`);
-        cachedRequest(endpoint + '/api/v2/list_movies.json?' + utils.serialize(query), (data) => {
-            try {
-                const jsonObject = JSON.parse(data)['data']['movies'];
-                console.log(`Movies data received: ${JSON.stringify(jsonObject)}`);
+		const query = {
+			genre: cat,
+			limit: 50,
+			sort_by: 'seeds',
+			page
+		}
 
-                if (!jsonObject || jsonObject.length === 0) {
-                    console.log('No more movies to load.');
-                    return resolve({
-                        metas: [],
-                        cacheMaxAge: cache.maxAge,
-                        staleError: cache.staleError
-                    });
-                }
+		cachedRequest(endpoint + '/api/v2/list_movies.json?' + utils.serialize(query), (data) => {	
 
-                const metas = jsonObject.map(item => ({
-                    id: item.imdb_code,
-                    name: item.title,
-                    poster: item.large_cover_image,
-                    background: item.background_image_original,
-                    year: item.year,
-                    releaseInfo: item.year,
-                    language: item.language,
-                    imdbRating: item.rating,
-                    runtime: item.runtime + 'm',
-                    genres: item.genres,
-                    type: 'movie'
-                }));
+			const jsonObject = JSON.parse(data)['data']['movies']
 
-                resolve({
-                    metas,
-                    cacheMaxAge: cache.maxAge,
-                    staleError: cache.staleError
-                });
-            } catch (error) {
-                console.error('Error parsing movies data:', error);
-                reject('Error parsing movies data: ' + error.message);
-            }
-        }, (error) => {
-            console.error('Error fetching movies:', error);
-            reject('Error fetching movies: ' + error);
-        });
-    });
+			const metas = (jsonObject || []).map(item => {
+				return {
+					id: item.imdb_code,
+					name: item.title,
+					poster: item.large_cover_image,
+					background: item.background_image_original,
+					year: item.year,
+					releaseInfo: item.year,
+					language: item.language,
+					imdbRating: item.rating,
+					runtime: item.runtime + 'm',
+					genres: item.genres,
+					type: 'movie'
+				}
+			})
+
+			resolve({
+				metas,
+				cacheMaxAge: cache.maxAge,
+				staleError: cache.staleError
+			})
+		})
+	})
 }
 
 function getStreams(imdb) {
