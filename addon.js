@@ -97,49 +97,60 @@ function getMovies(page, cat = false) {
 }
 
 function getStreams(imdb) {
-	return new Promise((resolve, reject) => {
+    return new Promise((resolve, reject) => {
 
-		const query = { query_term: imdb }
+        const query = { query_term: imdb }
 
-		cachedRequest(endpoint + '/api/v2/list_movies.json/?' + utils.serialize(query), (data) => {	
+        cachedRequest(endpoint + '/api/v2/list_movies.json/?' + utils.serialize(query), (data) => {    
 
+            const jsonObject = JSON.parse(data)['data']['movies']
 
-			const jsonObject = JSON.parse(data)['data']['movies']
+            const item = (jsonObject || []).find(el => {
+                return el.imdb_code == imdb
+            })
 
-			const item = (jsonObject || []).find(el => {
-				return el.imdb_code == imdb
-			})
+            let streams = []
 
-			let streams = []
+            if (((item || {}).torrents || []).length) {
+                streams = item.torrents
+                    .sort((a, b) => {
+                        // Sort by quality first with 2160p as highest priority
+                        const qualityOrder = ['2160p', '1080p', '720p']
+                        const qualityA = qualityOrder.indexOf(a.quality)
+                        const qualityB = qualityOrder.indexOf(b.quality)
+                        if (qualityA !== qualityB) return qualityA - qualityB
+                        
+                        // If quality is the same, sort by size
+                        return a.size_bytes - b.size_bytes
+                    })
+                    .map(el => {
+                        const hash = el.hash.toLowerCase()
+                        return {
+                            title: utils.capitalize(el.type) + ' / ' + el.quality + ', S: ' + el.seeds + ' L: ' + el.peers + ', Size: ' + el.size,
+                            infoHash: hash,
+                            sources: [
+                                'dht:' + hash,
+                                'tracker:udp://tracker.coppersurfer.tk:6969',
+                                'tracker:udp://tracker.openbittorrent.com:80',
+                                'tracker:udp://p4p.arenabg.com:1337',
+                                'tracker:udp://tracker.internetwarriors.net:1337',
+                                'tracker:udp://tracker.opentrackr.org:1337/announce',
+                                'tracker:udp://open.demonii.com:1337/announce',
+                                'tracker:udp://glotorrents.pw:6969/announce',
+                                'tracker:udp://torrent.gresille.org:80/announce',
+                                'tracker:udp://tracker.leechers-paradise.org:6969'
+                            ]
+                        }
+                    })
+            }
 
-			if (((item || {}).torrents || []).length)
-				streams = item.torrents.map(el => {
-					const hash = el.hash.toLowerCase()
-					return {
-						title: utils.capitalize(el.type) + ' / ' + el.quality + ', S: ' + el.seeds + ' L: ' + el.peers + ', Size: ' + el.size,
-						infoHash: hash,
-						sources: [
-							'dht:' + hash,
-							'tracker:udp://tracker.coppersurfer.tk:6969',
-							'tracker:udp://tracker.openbittorrent.com:80',
-							'tracker:udp://p4p.arenabg.com:1337',
-							'tracker:udp://tracker.internetwarriors.net:1337',
-							'tracker:udp://tracker.opentrackr.org:1337/announce',
-							'tracker:udp://open.demonii.com:1337/announce',
-                                                        'tracker:udp://glotorrents.pw:6969/announce',
-                                                        'tracker:udp://torrent.gresille.org:80/announce',
-                                                        'tracker:udp://tracker.leechers-paradise.org:6969'
-						]
-					}
-				})
-
-			resolve({
-				streams,
-				cacheMaxAge: cache.maxAge,
-				staleError: cache.staleError
-			})
-		})
-	})
+            resolve({
+                streams,
+                cacheMaxAge: cache.maxAge,
+                staleError: cache.staleError
+            })
+        })
+    })
 }
 
 const builder = new addonBuilder(manifest)
