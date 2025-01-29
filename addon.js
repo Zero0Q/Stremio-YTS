@@ -1,5 +1,6 @@
-const { addonBuilder } = require('stremio-addon-sdk')
-const axios = require('axios')
+const { addonBuilder } = require('stremio-addon-sdk');
+
+const builder = new addonBuilder(manifest);
 const request = require('request')
 const myCache = require('./cache')
 const utils = require('./utils')
