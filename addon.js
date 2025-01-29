@@ -5,7 +5,7 @@ const myCache = require('./cache')
 const utils = require('./utils')
 const package = require('./package.json')
 
-const endpoint = 'https://yts.lt'
+const endpoint = 'https://yts.mx'
 
 const oneDay = 24 * 60 * 60 // in seconds
 
@@ -63,7 +63,7 @@ function getMovies(page, cat = false) {
 		const query = {
 			genre: cat,
 			limit: 50,
-			sort_by: 'seeds',
+			sort_by: 'date_added',
 			page
 		}
 
