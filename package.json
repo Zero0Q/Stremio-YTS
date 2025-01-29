@@ -1,16 +1,17 @@
 {
-	"name": "stremio-addon-yts",
-	"version": "0.0.2",
-	"description": "show YTS list",
-	"engines": {
-		"node": "12.x"
-	},
-	"scripts": {
-		"start": "node server.js"
-	},
-	"dependencies": {
-		"axios": "^1.7.9",
-		"request": "^2.88.2",
-		"stremio-addon-sdk": "^1.6.2"
-	}
+  "name": "stremio-yts",
+  "version": "1.0.0",
+  "description": "Stremio YTS Movies streams and Catalogs",
+  "main": "addon.js",
+  "scripts": {
+    "start": "node addon.js"
+  },
+  "engines": {
+    "node": "12.x"
+  },
+  "dependencies": {
+    "axios": "^0.21.1",
+    "request": "^2.88.2",
+    "stremio-addon-sdk": "^1.0.0"
+  }
 }
