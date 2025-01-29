@@ -102,50 +102,60 @@ function getStreams(imdb) {
         const query = { query_term: imdb }
 
         cachedRequest(endpoint + '/api/v2/list_movies.json/?' + utils.serialize(query), (data) => {    
+            try {
+                const jsonObject = JSON.parse(data)['data']['movies']
 
-            const jsonObject = JSON.parse(data)['data']['movies']
+                const item = (jsonObject || []).find(el => el.imdb_code === imdb)
 
-            const item = (jsonObject || []).find(el => {
-                return el.imdb_code == imdb
-            })
+                if (!item) {
+                    console.error(`No metadata found for IMDb ID: ${imdb}`)
+                    return reject('No metadata was found!')
+                }
 
-            let streams = []
+                let streams = []
 
-            if (((item || {}).torrents || []).length) {
-                streams = item.torrents
-                    .sort((a, b) => {
-                        // Sort by quality first with 2160p as highest priority
-                        const qualityOrder = ['2160p', '1080p', '720p']
-                        const qualityA = qualityOrder.indexOf(a.quality)
-                        const qualityB = qualityOrder.indexOf(b.quality)
-                        return qualityA - qualityB
-                    })
-                    .map(el => {
-                        const hash = el.hash.toLowerCase()
-                        return {
-                            title: utils.capitalize(el.type) + ' / ' + el.quality + ', S: ' + el.seeds + ' L: ' + el.peers + ', Size: ' + el.size,
-                            infoHash: hash,
-                            sources: [
-                                'dht:' + hash,
-                                'tracker:udp://tracker.coppersurfer.tk:6969',
-                                'tracker:udp://tracker.openbittorrent.com:80',
-                                'tracker:udp://p4p.arenabg.com:1337',
-                                'tracker:udp://tracker.internetwarriors.net:1337',
-                                'tracker:udp://tracker.opentrackr.org:1337/announce',
-                                'tracker:udp://open.demonii.com:1337/announce',
-                                'tracker:udp://glotorrents.pw:6969/announce',
-                                'tracker:udp://torrent.gresille.org:80/announce',
-                                'tracker:udp://tracker.leechers-paradise.org:6969'
-                            ]
-                        }
-                    })
+                if (((item || {}).torrents || []).length) {
+                    streams = item.torrents
+                        .sort((a, b) => {
+                            // Sort by quality first with 2160p as highest priority
+                            const qualityOrder = ['2160p', '1080p', '720p']
+                            const qualityA = qualityOrder.indexOf(a.quality)
+                            const qualityB = qualityOrder.indexOf(b.quality)
+                            return qualityA - qualityB
+                        })
+                        .map(el => {
+                            const hash = el.hash.toLowerCase()
+                            return {
+                                title: utils.capitalize(el.type) + ' / ' + el.quality + ', S: ' + el.seeds + ' L: ' + el.peers + ', Size: ' + el.size,
+                                infoHash: hash,
+                                sources: [
+                                    'dht:' + hash,
+                                    'tracker:udp://tracker.coppersurfer.tk:6969',
+                                    'tracker:udp://tracker.openbittorrent.com:80',
+                                    'tracker:udp://p4p.arenabg.com:1337',
+                                    'tracker:udp://tracker.internetwarriors.net:1337',
+                                    'tracker:udp://tracker.opentrackr.org:1337/announce',
+                                    'tracker:udp://open.demonii.com:1337/announce',
+                                    'tracker:udp://glotorrents.pw:6969/announce',
+                                    'tracker:udp://torrent.gresille.org:80/announce',
+                                    'tracker:udp://tracker.leechers-paradise.org:6969'
+                                ]
+                            }
+                        })
+                }
+
+                resolve({
+                    streams,
+                    cacheMaxAge: cache.maxAge,
+                    staleError: cache.staleError
+                })
+            } catch (error) {
+                console.error(`Error parsing metadata for IMDb ID: ${imdb}`, error)
+                reject('Error parsing metadata response: ' + error.message)
             }
-
-            resolve({
-                streams,
-                cacheMaxAge: cache.maxAge,
-                staleError: cache.staleError
-            })
+        }, (error) => {
+            console.error(`Error fetching metadata for IMDb ID: ${imdb}`, error)
+            reject('Error fetching metadata: ' + error)
         })
     })
 }
