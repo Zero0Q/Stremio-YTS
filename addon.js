@@ -3,6 +3,7 @@ const request = require('request');
 const myCache = require('./cache');
 const utils = require('./utils');
 const package = require('./package.json');
+const RealDebrid = require('./realdebrid');
 
 const endpoint = 'https://yts.mx';
 const oneDay = 24 * 60 * 60; // in seconds
@@ -11,6 +12,10 @@ const cache = {
     maxAge: 1.5 * oneDay, // 1.5 days
     staleError: 6 * 30 * oneDay // 6 months
 };
+
+// Real-Debrid configuration - use environment variable
+const rdApiKey = process.env.RD_API_KEY;
+const rdClient = rdApiKey ? new RealDebrid(rdApiKey) : null;
 
 const manifest = {
     id: 'community.yts',
@@ -33,35 +38,21 @@ const manifest = {
     resources: ['catalog', 'stream'],
     types: ['movie'],
     name: 'YTS',
-    description: 'Movies and torrent results from YTS',
+    description: 'YTS Movies catalog with Real-Debrid support. Configure Real-Debrid at: https://yes-movies-catalog-59a8b3211813.herokuapp.com/config.html',
     idPrefixes: ['tt']
 };
-
-function cachedRequest(url, callback, reject) {
-    let data = myCache.get(url);
-    if (data) {
-        callback(data);
-    } else {
-        request(url, function(error, response, data) {
-            if (error || !data || response.statusCode != 200) {
-                reject('Invalid response from API for category: ' + (cat || 'top') + ' / page: ' + page);
-                return;
-            }
-            myCache.set(url, data, 432000);
-            callback(data);
-        });
-    }
-}
 
 function getMovies(page, cat = false) {
     return new Promise((resolve, reject) => {
         const query = {
             genre: cat,
             limit: 50,
-            sort_by: 'seeds',
+            order_by: 'year',
+            sort_by: 'desc',
             page
         };
 
+        console.log('Making API request with query:', query);
         cachedRequest(endpoint + '/api/v2/list_movies.json?' + utils.serialize(query), (data) => {
             const jsonObject = JSON.parse(data)['data']['movies'];
 
@@ -84,20 +75,18 @@ function getMovies(page, cat = false) {
                 cacheMaxAge: cache.maxAge,
                 staleError: cache.staleError
             });
-        });
+        }, reject);
     });
 }
 
-function getStreams(imdb) {
+async function getStreams(imdb) {
     return new Promise((resolve, reject) => {
         const query = { query_term: imdb };
 
         console.log(`Fetching streams with query: ${JSON.stringify(query)}`);
-        cachedRequest(endpoint + '/api/v2/list_movies.json/?' + utils.serialize(query), (data) => {
+        cachedRequest(endpoint + '/api/v2/list_movies.json/?' + utils.serialize(query), async (data) => {
             try {
                 const jsonObject = JSON.parse(data)['data']['movies'];
-                console.log(`Streams data received: ${JSON.stringify(jsonObject)}`);
-
                 const item = (jsonObject || []).find(el => el.imdb_code === imdb);
 
                 if (!item) {
@@ -105,10 +94,48 @@ function getStreams(imdb) {
                     return reject('No metadata was found!');
                 }
 
-                let streams = item.torrents.map(el => ({
+                const qualityOrder = {
+                    '2160p': 4,
+                    '1080p': 3,
+                    '720p': 2,
+                    '480p': 1
+                };
+
+                // Sort torrents by quality
+                const sortedTorrents = item.torrents.sort((a, b) => {
+                    const qualityA = qualityOrder[a.quality] || 0;
+                    const qualityB = qualityOrder[b.quality] || 0;
+                    return qualityB - qualityA;
+                });
+
+                // Process through Real-Debrid if configured
+                const streams = [];
+                if (rdClient) {
+                    console.log('Real-Debrid enabled, converting torrents to streams');
+                    for (const torrent of sortedTorrents) {
+                        try {
+                            const streamUrl = await rdClient.addMagnet(torrent.hash.toLowerCase());
+                            if (streamUrl) {
+                                streams.push({
+                                    title: `🌟 RD ${utils.capitalize(torrent.type)} / ${torrent.quality}, Size: ${torrent.size}`,
+                                    url: streamUrl
+                                });
+                            }
+                        } catch (error) {
+                            console.error('Real-Debrid conversion failed:', error);
+                        }
+                    }
+                } else {
+                    console.log('Real-Debrid not configured, using regular torrent streams');
+                }
+
+                // Add regular torrent streams as fallback
+                const torrentStreams = sortedTorrents.map(el => ({
                     title: utils.capitalize(el.type) + ' / ' + el.quality + ', S: ' + el.seeds + ' L: ' + el.peers + ', Size: ' + el.size,
                     infoHash: el.hash.toLowerCase()
                 }));
+
+                streams.push(...torrentStreams);
 
                 resolve({
                     streams,

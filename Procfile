@@ -1,1 +1,1 @@
-web: node addon.js
+web: NODE_ENV=production node server.js
