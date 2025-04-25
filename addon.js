@@ -158,17 +158,15 @@ async function getStreams(imdb) {
                             console.error('Real-Debrid conversion failed:', error);
                         }
                     }
+                    
+                    if (streams.length === 0) {
+                        console.log('No Real-Debrid streams available');
+                        return resolve({ streams: [], cacheMaxAge: cache.maxAge, staleError: cache.staleError });
+                    }
                 } else {
-                    console.log('Real-Debrid not configured, using regular torrent streams');
+                    console.log('Real-Debrid not configured');
+                    return resolve({ streams: [], cacheMaxAge: cache.maxAge, staleError: cache.staleError });
                 }
-
-                // Add regular torrent streams as fallback
-                const torrentStreams = sortedTorrents.map(el => ({
-                    title: utils.capitalize(el.type) + ' / ' + el.quality + ', S: ' + el.seeds + ' L: ' + el.peers + ', Size: ' + el.size,
-                    infoHash: el.hash.toLowerCase()
-                }));
-
-                streams.push(...torrentStreams);
 
                 resolve({
                     streams,
