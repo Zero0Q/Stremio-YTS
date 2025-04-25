@@ -60,19 +60,6 @@ app.post('/config', async (req, res) => {
     }
 });
 
-// Cache clear endpoint
-app.post('/clear-cache', (req, res) => {
-    try {
-        const myCache = require('./cache');
-        myCache.clear();
-        console.log('Cache cleared successfully');
-        res.json({ success: true, message: 'Cache cleared successfully' });
-    } catch (error) {
-        console.error('Error clearing cache:', error);
-        res.status(500).json({ error: 'Failed to clear cache' });
-    }
-});
-
 // Add Stremio addon routes
 const { getRouter } = require('stremio-addon-sdk');
 const addonRouter = getRouter(addonInterface);
