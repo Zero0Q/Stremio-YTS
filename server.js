@@ -12,6 +12,11 @@ const PORT = process.env.PORT || 3000;
 app.use(bodyParser.json());
 app.use(express.static('public'));
 
+// Root redirect to config page
+app.get('/', (req, res) => {
+    res.redirect('/config.html');
+});
+
 // Load configuration
 let config = {};
 const configFile = process.env.CONFIG_FILE || 'config.json';
