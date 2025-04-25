@@ -11,6 +11,22 @@ class RealDebrid {
         });
     }
 
+    async waitForTorrent(id, maxAttempts = 10) {
+        for (let i = 0; i < maxAttempts; i++) {
+            const info = await this.axios.get(`${this.baseUrl}/torrents/info/${id}`);
+            if (info.data.status === 'downloaded') {
+                return true;
+            }
+            if (info.data.status === 'error' || info.data.status === 'dead' || info.data.status === 'magnet_error') {
+                console.error('Torrent failed:', info.data.status);
+                return false;
+            }
+            // Wait 2 seconds before next check
+            await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+        return false;
+    }
+
     async addMagnet(hash) {
         try {
             // Convert hash to magnet link
@@ -27,10 +43,18 @@ class RealDebrid {
             });
             
             // Wait for the torrent to be processed
-            const info = await this.axios.get(`${this.baseUrl}/torrents/info/${addResponse.data.id}`);
+            const success = await this.waitForTorrent(addResponse.data.id);
+            if (!success) {
+                console.error('Torrent processing failed or timed out');
+                return null;
+            }
             
             // Get the streaming link
             const links = await this.axios.get(`${this.baseUrl}/torrents/links/${addResponse.data.id}`);
+            if (!links.data || !links.data[0]) {
+                console.error('No links available for torrent');
+                return null;
+            }
             
             // Unrestrict the link to get the final streaming URL
             const unrestrictedLink = await this.axios.post(`${this.baseUrl}/unrestrict/link`, {
