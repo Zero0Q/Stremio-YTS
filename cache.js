@@ -1,4 +1,3 @@
-
 const db = {}
 
 module.exports = {
@@ -10,5 +9,10 @@ module.exports = {
 	},
 	get: id => {
 		return db[id]
+	},
+	clear: () => {
+		for (const key in db) {
+			delete db[key]
+		}
 	}
 }

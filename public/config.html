@@ -49,6 +49,12 @@
         button:hover {
             background: #008018;
         }
+        .danger-button {
+            background: #b02000;
+        }
+        .danger-button:hover {
+            background: #801800;
+        }
         .message {
             margin-top: 20px;
             padding: 10px;
@@ -91,6 +97,9 @@
             </div>
             <button type="submit">Save Configuration</button>
         </form>
+        <div class="form-group" style="margin-top: 20px;">
+            <button id="clearCacheBtn" class="danger-button" type="button">Clear Cache</button>
+        </div>
         <div id="message" class="message" style="display: none;"></div>
         <div id="installButton" class="install-button">
             <a href="stremio://yes-movies-catalog-59a8b3211813.herokuapp.com/manifest.json">
@@ -133,6 +142,31 @@
                 messageDiv.style.display = 'block';
                 messageDiv.className = 'message error';
                 messageDiv.textContent = 'An error occurred while saving the configuration';
+            }
+        });
+
+        document.getElementById('clearCacheBtn').addEventListener('click', async () => {
+            try {
+                const response = await fetch(`${BASE_URL}/clear-cache`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                const messageDiv = document.getElementById('message');
+                messageDiv.style.display = 'block';
+                
+                if (response.ok) {
+                    messageDiv.className = 'message success';
+                    messageDiv.textContent = data.message || 'Cache cleared successfully!';
+                } else {
+                    messageDiv.className = 'message error';
+                    messageDiv.textContent = data.error || 'Failed to clear cache';
+                }
+            } catch (error) {
+                const messageDiv = document.getElementById('message');
+                messageDiv.style.display = 'block';
+                messageDiv.className = 'message error';
+                messageDiv.textContent = 'An error occurred while clearing the cache';
             }
         });
 
