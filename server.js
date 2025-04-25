@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const bodyParser = require('body-parser');
 const addonInterface = require("./addon");
+const { initializeRealDebrid } = require('./addon');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -48,6 +49,9 @@ app.post('/config', async (req, res) => {
         } else {
             fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
         }
+
+        // Initialize Real-Debrid client with new API key
+        initializeRealDebrid(rdApiKey);
         
         res.json({ success: true });
     } catch (error) {
@@ -56,8 +60,9 @@ app.post('/config', async (req, res) => {
     }
 });
 
-// Set initial RD_API_KEY from config or environment
+// Set initial RD_API_KEY from config or environment and initialize client
 process.env.RD_API_KEY = process.env.RD_API_KEY || config.rdApiKey;
+initializeRealDebrid(process.env.RD_API_KEY);
 
 // Add Stremio addon routes
 const { getRouter } = require('stremio-addon-sdk');

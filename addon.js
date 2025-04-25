@@ -37,9 +37,18 @@ function cachedRequest(url, callback, errorCallback) {
     });
 }
 
-// Real-Debrid configuration - use environment variable
-const rdApiKey = process.env.RD_API_KEY;
-const rdClient = rdApiKey ? new RealDebrid(rdApiKey) : null;
+// Real-Debrid configuration
+let rdClient = null;
+
+// Function to initialize/reinitialize Real-Debrid client
+function initializeRealDebrid(apiKey) {
+    console.log('Initializing Real-Debrid client with API key:', apiKey ? '[HIDDEN]' : 'none');
+    rdClient = apiKey ? new RealDebrid(apiKey) : null;
+    return rdClient;
+}
+
+// Initialize with environment variable
+initializeRealDebrid(process.env.RD_API_KEY);
 
 const manifest = {
     id: 'community.yts',
@@ -187,4 +196,7 @@ builder.defineStreamHandler(args => {
     return getStreams(args.id);
 });
 
-module.exports = builder.getInterface();
+module.exports = {
+    ...builder.getInterface(),
+    initializeRealDebrid
+};
