@@ -2,9 +2,9 @@
   "name": "stremio-yts",
   "version": "1.0.0",
   "description": "Stremio YTS Movies streams and Catalogs",
-  "main": "addon.js",
+  "main": "server.js",
   "scripts": {
-    "start": "node addon.js"
+    "start": "node server.js"
   },
   "engines": {
     "node": ">=15.x"

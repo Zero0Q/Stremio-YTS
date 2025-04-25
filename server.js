@@ -3,7 +3,6 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const bodyParser = require('body-parser');
-const { serveHTTP } = require("stremio-addon-sdk");
 const addonInterface = require("./addon");
 
 const app = express();
@@ -55,10 +54,16 @@ app.post('/config', async (req, res) => {
 // Set initial RD_API_KEY from config or environment
 process.env.RD_API_KEY = process.env.RD_API_KEY || config.rdApiKey;
 
-// Start the combined server (both addon and config on same port for Heroku)
+// Add Stremio addon routes
+const { getRouter } = require('stremio-addon-sdk');
+const addonRouter = getRouter(addonInterface);
+app.use((req, res, next) => {
+    addonRouter(req, res, next);
+});
+
+// Start the server
 app.listen(PORT, () => {
-    console.log(`Configuration page available at: /config.html`);
-    // Serve the Stremio addon on the same Express server
-    serveHTTP(addonInterface, { port: PORT, server: app });
     console.log(`Server running on port ${PORT}`);
+    console.log(`Configuration page available at: /config.html`);
+    console.log(`Addon manifest available at: /manifest.json`);
 });
