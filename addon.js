@@ -13,6 +13,30 @@ const cache = {
     staleError: 6 * 30 * oneDay // 6 months
 };
 
+// Implement cached request function
+function cachedRequest(url, callback, errorCallback) {
+    const cached = myCache.get(url);
+    if (cached) {
+        callback(cached);
+        return;
+    }
+
+    request(url, (error, response, body) => {
+        if (error) {
+            errorCallback(error);
+            return;
+        }
+
+        if (response.statusCode !== 200) {
+            errorCallback(new Error(`HTTP ${response.statusCode}`));
+            return;
+        }
+
+        myCache.set(url, body, cache.maxAge);
+        callback(body);
+    });
+}
+
 // Real-Debrid configuration - use environment variable
 const rdApiKey = process.env.RD_API_KEY;
 const rdClient = rdApiKey ? new RealDebrid(rdApiKey) : null;
