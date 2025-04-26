@@ -6,11 +6,11 @@ const package = require('./package.json');
 const RealDebrid = require('./realdebrid');
 
 const endpoint = 'https://yts.mx';
-const oneDay = 24 * 60 * 60; // in seconds
+const oneHour = 60 * 60; // in seconds
 
 const cache = {
-    maxAge: 1.5 * oneDay, // 1.5 days
-    staleError: 6 * 30 * oneDay // 6 months
+    maxAge: oneHour, // 1 hour
+    staleError: 6 * 30 * oneHour // 6 months
 };
 
 // Implement cached request function
