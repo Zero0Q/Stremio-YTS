@@ -113,73 +113,100 @@ function getMovies(page, cat = false) {
 }
 
 async function getStreams(imdb) {
-    return new Promise((resolve, reject) => {
-        const query = { query_term: imdb };
+    const query = { query_term: imdb };
+    const ytsUrl = endpoint + '/api/v2/list_movies.json/?' + utils.serialize(query);
 
-        console.log(`Fetching streams with query: ${JSON.stringify(query)}`);
-        cachedRequest(endpoint + '/api/v2/list_movies.json/?' + utils.serialize(query), async (data) => {
+    console.log(`Fetching YTS metadata for IMDb ID: ${imdb} using URL: ${ytsUrl}`);
+
+    // Step 1: Get YTS data (cached or fresh) using cachedRequest
+    const ytsItemData = await new Promise((resolve, reject) => {
+        cachedRequest(ytsUrl, (data) => {
             try {
                 const jsonObject = JSON.parse(data)['data']['movies'];
                 const item = (jsonObject || []).find(el => el.imdb_code === imdb);
-
                 if (!item) {
-                    console.error(`No metadata found for IMDb ID: ${imdb}`);
-                    return reject('No metadata was found!');
-                }
-
-                const qualityOrder = {
-                    '2160p': 4,
-                    '1080p': 3,
-                    '720p': 2,
-                    '480p': 1
-                };
-
-                // Sort torrents by quality
-                const sortedTorrents = item.torrents.sort((a, b) => {
-                    const qualityA = qualityOrder[a.quality] || 0;
-                    const qualityB = qualityOrder[b.quality] || 0;
-                    return qualityB - qualityA;
-                });
-
-                // Process through Real-Debrid if configured
-                const streams = [];
-                if (rdClient) {
-                    console.log('Real-Debrid enabled, converting torrents to streams');
-                    for (const torrent of sortedTorrents) {
-                        try {
-                            const streamUrl = await rdClient.addMagnet(torrent.hash.toLowerCase());
-                            if (streamUrl) {
-                                streams.push({
-                                    title: `🌟 RD ${utils.capitalize(torrent.type)} / ${torrent.quality}, Size: ${torrent.size}`,
-                                    url: streamUrl
-                                });
-                            }
-                        } catch (error) {
-                            console.error('Real-Debrid conversion failed:', error);
-                        }
-                    }
-                    
-                    if (streams.length === 0) {
-                        console.log('No Real-Debrid streams available');
-                        return resolve({ streams: [], cacheMaxAge: cache.maxAge, staleError: cache.staleError });
-                    }
+                    console.error(`No YTS metadata found for IMDb ID: ${imdb}`);
+                    // Reject specifically for not found, allows differentiating errors
+                    reject(new Error(`No YTS metadata found for IMDb ID: ${imdb}`));
                 } else {
-                    console.log('Real-Debrid not configured');
-                    return resolve({ streams: [], cacheMaxAge: cache.maxAge, staleError: cache.staleError });
+                    console.log(`Successfully fetched YTS metadata for IMDb ID: ${imdb}`);
+                    resolve(item); // Resolve with just the relevant movie item
                 }
-
-                resolve({
-                    streams,
-                    cacheMaxAge: cache.maxAge,
-                    staleError: cache.staleError
-                });
             } catch (error) {
+                console.error(`Error parsing YTS metadata response for ${imdb}:`, error);
                 reject('Error parsing metadata response: ' + error.message);
             }
         }, (error) => {
+            console.error(`Error fetching YTS metadata for ${imdb}:`, error);
             reject('Error fetching metadata: ' + error);
         });
+    }); // If this rejects, the promise chain stops here, which is correct.
+
+    // Step 2: Process torrents and generate RD links (if applicable)
+    // This part runs *after* ytsItemData is successfully retrieved (from cache or API)
+    const qualityOrder = {
+        '2160p': 4,
+        '1080p': 3,
+        '720p': 2,
+        '480p': 1
+    };
+
+    // Sort torrents by quality
+    const sortedTorrents = ytsItemData.torrents.sort((a, b) => {
+        const qualityA = qualityOrder[a.quality] || 0;
+        const qualityB = qualityOrder[b.quality] || 0;
+        return qualityB - qualityA;
     });
+
+    let streams = [];
+    if (rdClient) {
+        console.log(`Real-Debrid enabled for ${imdb}, converting torrents to streams`);
+        // Use Promise.allSettled to attempt all conversions and gather results
+        const rdResults = await Promise.allSettled(sortedTorrents.map(async (torrent) => {
+            try {
+                const streamUrl = await rdClient.addMagnet(torrent.hash.toLowerCase());
+                if (streamUrl) {
+                    return { // Return stream object on success
+                        title: `🌟 RD ${utils.capitalize(torrent.type)} / ${torrent.quality}, Size: ${torrent.size}`,
+                        url: streamUrl
+                    };
+                } else {
+                    // If addMagnet returns null/undefined but doesn't throw
+                    console.warn(`Real-Debrid returned no stream URL for torrent hash: ${torrent.hash}`);
+                    return null;
+                }
+            } catch (error) {
+                console.error(`Real-Debrid conversion failed for torrent hash ${torrent.hash}:`, error);
+                return null; // Return null on error for this specific torrent
+            }
+        }));
+
+        // Filter out failed/null results and add successful streams
+        streams = rdResults
+            .filter(result => result.status === 'fulfilled' && result.value)
+            .map(result => result.value);
+
+        if (streams.length === 0) {
+            console.log(`No Real-Debrid streams could be generated for ${imdb}`);
+            // It's not an error state for the addon, just no RD links found/generated
+        } else {
+             console.log(`Generated ${streams.length} Real-Debrid streams for ${imdb}`);
+        }
+    } else {
+        console.log(`Real-Debrid not configured for ${imdb}, skipping RD stream generation.`);
+        // No RD client, streams array remains empty
+    }
+
+    // Step 3: Return the final stream list
+    // Stremio will cache this response based on cacheMaxAge.
+    // The YTS data itself is cached separately by cachedRequest.
+    return {
+        streams,
+        cacheMaxAge: cache.maxAge, // Use the configured cache duration (1 hour) for Stremio's cache of this response
+        staleError: cache.staleError
+    };
+    // No explicit catch here, errors from the Promise or rdClient calls will propagate
+    // and cause the defineStreamHandler to reject, which is the expected behavior.
 }
 
 const builder = new addonBuilder(manifest);
